@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo do Relógio - Aprenda a Ver as Horas</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
+            min-height: 100vh;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .font-heading {
+            font-family: 'Fredoka', cursive;
+        }
+        .clock-shadow {
+            filter: drop-shadow(0px 15px 25px rgba(0, 0, 0, 0.4));
+        }
+        .hand {
+            transform-origin: 50% 50%;
+            transition: transform 0.25s cubic-bezier(0.4, 2.08, 0.55, 0.44);
+            cursor: pointer;
+        }
+        .hand.dragging {
+            transition: none !important;
+        }
+        .btn-bounce:active {
+            transform: scale(0.95);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(129, 140, 248, 0.4); }
+            50% { box-shadow: 0 0 35px rgba(129, 140, 248, 0.8); }
+        }
+        .glow-effect {
+            animation: pulse-glow 2.5s infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+        .floating {
+            animation: float 4s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="text-white flex flex-col min-h-screen overflow-x-hidden">
+
+    <header class="w-full py-4 px-6 glass-card flex justify-between items-center z-20 shadow-lg">
+        <div class="flex items-center space-x-3">
+            <div class="bg-indigo-600 text-amber-300 w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-lg border border-indigo-400/30">
+                <i class="fa-solid fa-clock"></i>
+            </div>
+            <div>
+                <h1 class="font-heading text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-300 via-indigo-200 to-pink-300">
+                    O Jogo do Relógio
+                </h1>
+                <p class="text-xs text-indigo-200 font-medium hidden sm:block">Aprenda a ler as horas nos ponteiros de forma divertida!</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <!-- Sound Toggle -->
+            <button id="soundToggleBtn" onclick="game.toggleSound()" class="w-10 h-10 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-indigo-300 flex items-center justify-center transition border border-indigo-500/20" title="Efeitos Sonoros">
+                <i id="soundIcon" class="fa-solid fa-volume-high"></i>
+            </button>
+            <!-- Music Toggle -->
+            <button id="musicToggleBtn" onclick="game.toggleMusic()" class="w-10 h-10 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-indigo-300 flex items-center justify-center transition border border-indigo-500/20" title="Música de Fundo">
+                <i id="musicIcon" class="fa-solid fa-music text-amber-300"></i>
+            </button>
+            <!-- Help Button -->
+            <button onclick="game.openHelpModal()" class="w-10 h-10 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-indigo-300 flex items-center justify-center transition border border-indigo-500/20">
+                <i class="fa-solid fa-circle-question"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-5xl w-full mx-auto p-4 md:p-6 flex flex-col items-center justify-center relative">
+
+        <!-- Start / Menu Screen -->
+        <div id="menuScreen" class="w-full max-w-xl glass-card rounded-3xl p-6 md:p-8 text-center flex flex-col items-center space-y-6 shadow-2xl relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl"></div>
+            <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-pink-500/20 rounded-full blur-3xl"></div>
+
+            <div class="floating">
+                <div class="w-24 h-24 bg-gradient-to-tr from-amber-400 to-indigo-500 rounded-3xl p-1 shadow-xl flex items-center justify-center">
+                    <div class="w-full h-full bg-slate-900 rounded-[22px] flex items-center justify-center">
+                        <i class="fa-regular fa-clock text-5xl text-amber-400"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h2 class="font-heading text-3xl font-extrabold text-white mb-2">Desafio das Horas!</h2>
+                <p class="text-indigo-200 text-sm max-w-md">Escolha o modo de jogo e o nível de dificuldade para testar suas habilidades com o relógio analógico.</p>
+            </div>
+
+            <!-- Mode Selector -->
+            <div class="w-full space-y-3">
+                <label class="block text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Modo de Jogo</label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button onclick="game.setGameMode('guess')" id="modeGuessBtn" class="p-3 rounded-2xl border-2 border-indigo-500 bg-indigo-600/30 text-left transition flex items-center space-x-3">
+                        <i class="fa-solid fa-eye text-2xl text-amber-300"></i>
+                        <div>
+                            <div class="font-bold text-sm">Descobrir a Hora</div>
+                            <div class="text-xs text-indigo-200">Olhe o relógio e escolha a hora certa</div>
+                        </div>
+                    </button>
+                    <button onclick="game.setGameMode('set')" id="modeSetBtn" class="p-3 rounded-2xl border-2 border-slate-700 bg-slate-800/40 text-left transition flex items-center space-x-3">
+                        <i class="fa-solid fa-hand-pointer text-2xl text-pink-400"></i>
+                        <div>
+                            <div class="font-bold text-sm">Ajustar o Relógio</div>
+                            <div class="text-xs text-indigo-200">Mova os ponteiros para marcar a hora pedida</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Difficulty Selector -->
+            <div class="w-full space-y-3">
+                <label class="block text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Nível de Dificuldade</label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <button onclick="game.setDifficulty('easy')" id="diffEasyBtn" class="py-2 px-2 rounded-xl border-2 border-amber-400 bg-amber-400/20 text-amber-300 font-bold text-xs transition text-center">
+                        🌱 Fácil<br><span class="text-[10px] font-normal text-amber-200/80">Horas Exatas</span>
+                    </button>
+                    <button onclick="game.setDifficulty('medium')" id="diffMediumBtn" class="py-2 px-2 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-indigo-200 font-bold text-xs transition text-center">
+                        ⚡ Médio<br><span class="text-[10px] font-normal text-indigo-300/80">15 em 15 min</span>
+                    </button>
+                    <button onclick="game.setDifficulty('hard')" id="diffHardBtn" class="py-2 px-2 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-indigo-200 font-bold text-xs transition text-center">
+                        🔥 Difícil<br><span class="text-[10px] font-normal text-indigo-300/80">5 em 5 min</span>
+                    </button>
+                    <button onclick="game.setDifficulty('expert')" id="diffExpertBtn" class="py-2 px-2 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-indigo-200 font-bold text-xs transition text-center">
+                        🧠 Expert<br><span class="text-[10px] font-normal text-indigo-300/80">1 em 1 min</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Game Type / Timer -->
+            <div class="w-full space-y-3">
+                <label class="block text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Estilo de Rodada</label>
+                <div class="flex space-x-3">
+                    <button onclick="game.setTimeLimit(60)" id="timer60Btn" class="flex-1 py-2.5 rounded-xl border border-indigo-500/50 bg-indigo-500/20 text-indigo-200 text-xs font-bold">
+                        ⏱️ Contra o Tempo (60s)
+                    </button>
+                    <button onclick="game.setTimeLimit(0)" id="timerFreeBtn" class="flex-1 py-2.5 rounded-xl border border-slate-700 bg-slate-800/40 text-slate-400 text-xs font-bold">
+                        ♾️ Treino Sem Apressar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Play Button -->
+            <button onclick="game.startGame()" class="w-full py-4 bg-gradient-to-r from-amber-400 via-orange-500 to-pink-500 hover:from-amber-300 hover:to-pink-400 text-slate-950 font-heading text-xl font-bold rounded-2xl shadow-xl transform active:scale-95 transition-all glow-effect">
+                <i class="fa-solid fa-play mr-2"></i> Iniciar Jogo!
+            </button>
+        </div>
+
+        <!-- Play Screen -->
+        <div id="playScreen" class="w-full hidden flex-col items-center space-y-6 max-w-2xl">
+            <!-- Score Header HUD -->
+            <div class="w-full glass-card rounded-2xl p-4 flex justify-between items-center shadow-lg">
+                <div class="flex items-center space-x-2">
+                    <div class="w-9 h-9 rounded-xl bg-amber-400/20 border border-amber-400/30 text-amber-300 flex items-center justify-center font-bold">
+                        🏆
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-indigo-300 font-bold uppercase">Pontuação</div>
+                        <div id="scoreDisplay" class="text-xl font-extrabold text-amber-300 font-heading">0</div>
+                    </div>
+                </div>
+
+                <!-- Streak Counter -->
+                <div class="flex items-center space-x-2">
+                    <div class="w-9 h-9 rounded-xl bg-pink-500/20 border border-pink-500/30 text-pink-400 flex items-center justify-center font-bold">
+                        🔥
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-indigo-300 font-bold uppercase">Sequência</div>
+                        <div id="streakDisplay" class="text-xl font-extrabold text-pink-400 font-heading">0x</div>
+                    </div>
+                </div>
+
+                <!-- Timer Display -->
+                <div id="timerContainer" class="flex items-center space-x-2">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 flex items-center justify-center font-bold">
+                        ⏱️
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-indigo-300 font-bold uppercase">Tempo</div>
+                        <div id="timerDisplay" class="text-xl font-extrabold text-indigo-200 font-heading">60s</div>
+                    </div>
+                </div>
+
+                <button onclick="game.exitToMenu()" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-xl text-indigo-200 border border-indigo-500/20 transition">
+                    <i class="fa-solid fa-house mr-1"></i> Sair
+                </button>
+            </div>
+
+            <!-- Question / Instruction Banner -->
+            <div id="instructionBanner" class="w-full glass-card rounded-2xl p-4 text-center border-l-4 border-amber-400 shadow-md">
+                <div id="questionPromptText" class="text-lg md:text-xl font-extrabold text-amber-200">
+                    Que horas o relógio está marcando (24h)?
+                </div>
+                <div id="periodBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold mt-2 shadow-sm">
+                    ☀️ Tarde
+                </div>
+                <div id="targetTimeDisplay" class="text-3xl font-extrabold font-heading text-amber-300 hidden mt-1 tracking-wider">
+                    00:00
+                </div>
+            </div>
+
+            <!-- The Analog Clock SVG Container -->
+            <div class="relative flex items-center justify-center p-2">
+                <svg id="clockSVG" class="w-72 h-72 md:w-80 md:h-80 clock-shadow overflow-visible" viewBox="0 0 300 300">
+                    <!-- Clock Outer Rim & Frame -->
+                    <circle cx="150" cy="150" r="142" fill="#1e293b" stroke="#334155" stroke-width="8" />
+                    <circle cx="150" cy="150" r="136" fill="#0f172a" stroke="#6366f1" stroke-width="5" />
+                    <circle cx="150" cy="150" r="126" fill="#1e1b4b" />
+
+                    <!-- Inner Decorative Rings -->
+                    <circle cx="150" cy="150" r="120" fill="none" stroke="#312e81" stroke-width="2" stroke-dasharray="2 6" />
+
+                    <!-- Clock Face Minute Ticks & Numbers (Rendered dynamically) -->
+                    <g id="clockTicks"></g>
+                    <g id="clockNumbers"></g>
+
+                    <!-- Hour Hand (Red/Orange) -->
+                    <g id="hourHandGroup" class="hand">
+                        <line x1="150" y1="150" x2="150" y2="80" stroke="#f97316" stroke-width="9" stroke-linecap="round" />
+                        <polygon points="150,68 143,82 157,82" fill="#f97316" />
+                    </g>
+
+                    <!-- Minute Hand (Cyan/Blue) -->
+                    <g id="minuteHandGroup" class="hand">
+                        <line x1="150" y1="150" x2="150" y2="48" stroke="#38bdf8" stroke-width="6" stroke-linecap="round" />
+                        <polygon points="150,36 144,52 156,52" fill="#38bdf8" />
+                    </g>
+
+                    <!-- Clock Center Pin -->
+                    <circle cx="150" cy="150" r="8" fill="#f43f5e" />
+                    <circle cx="150" cy="150" r="3" fill="#ffffff" />
+                </svg>
+
+                <!-- Color legend hint -->
+                <div class="absolute bottom-[-15px] flex space-x-4 text-[11px] font-bold bg-slate-900/90 py-1 px-3 rounded-full border border-indigo-500/30 shadow-md">
+                    <div class="flex items-center space-x-1">
+                        <span class="w-3 h-3 rounded-full bg-orange-500 inline-block"></span>
+                        <span class="text-orange-300">Ponteiro Curto: Horas</span>
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        <span class="w-3 h-3 rounded-full bg-sky-400 inline-block"></span>
+                        <span class="text-sky-300">Ponteiro Longo: Minutos</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls Area for Mode 'Guessing' (Multiple Choice Options) -->
+            <div id="guessControls" class="w-full space-y-4 pt-2">
+                <div id="optionsContainer" class="grid grid-cols-2 gap-3 md:gap-4">
+                    <!-- Dynamic option buttons injected via JS -->
+                </div>
+            </div>
+
+            <!-- Controls Area for Mode 'Set Clock' (Drag / Adjust Controls) -->
+            <div id="setControls" class="w-full hidden space-y-4 pt-2 text-center">
+                <p class="text-xs text-indigo-300">
+                    <i class="fa-solid fa-hand-pointer mr-1"></i> Arraste os ponteiros ou use os botões abaixo para ajustar em formato 24h:
+                </p>
+
+                <div class="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                    <!-- Hour adjuster (00 to 23) -->
+                    <div class="bg-slate-800/80 p-2 rounded-2xl border border-orange-500/30 flex items-center space-x-2">
+                        <span class="text-xs font-bold text-orange-400 px-1">Horas (24h):</span>
+                        <button onclick="game.adjustHours(-1)" class="w-9 h-9 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold text-orange-300 active:scale-95 transition">-</button>
+                        <span id="userHoursDisplay" class="font-heading font-bold text-lg w-8 text-center text-orange-300">12</span>
+                        <button onclick="game.adjustHours(1)" class="w-9 h-9 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold text-orange-300 active:scale-95 transition">+</button>
+                    </div>
+
+                    <!-- Minute adjuster (+1/-1 and +5/-5 buttons) -->
+                    <div class="bg-slate-800/80 p-2 rounded-2xl border border-sky-500/30 flex items-center space-x-2">
+                        <span class="text-xs font-bold text-sky-400 px-1">Minutos:</span>
+                        <button onclick="game.adjustMinutes(-5)" class="px-2 h-9 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold text-xs text-sky-300 active:scale-95 transition">-5</button>
+                        <button onclick="game.adjustMinutes(-1)" class="w-8 h-9 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold text-sm text-sky-300 active:scale-95 transition">-1</button>
+                        <span id="userMinutesDisplay" class="font-heading font-bold text-lg w-8 text-center text-sky-300">00</span>
+                        <button onclick="game.adjustMinutes(1)" class="w-8 h-9 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold text-sm text-sky-300 active:scale-95 transition">+1</button>
+                        <button onclick="game.adjustMinutes(5)" class="px-2 h-9 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold text-xs text-sky-300 active:scale-95 transition">+5</button>
+                    </div>
+                </div>
+
+                <button onclick="game.checkSetAnswer()" class="w-full py-3.5 bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-slate-950 font-heading font-extrabold text-lg rounded-2xl shadow-lg active:scale-95 transition">
+                    <i class="fa-solid fa-circle-check mr-2"></i> Confirmar Horário (24h)
+                </button>
+            </div>
+
+            <!-- Feedback Message Banner -->
+            <div id="feedbackBanner" class="w-full p-3 rounded-2xl text-center font-bold text-sm hidden transition-all duration-300"></div>
+        </div>
+
+        <!-- Game Over Modal -->
+        <div id="gameOverModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+            <div class="glass-card max-w-md w-full rounded-3xl p-6 md:p-8 text-center space-y-6 shadow-2xl border border-indigo-500/30">
+                <div class="text-5xl">🎉</div>
+                <h2 class="font-heading text-3xl font-extrabold text-amber-300">Fim de Jogo!</h2>
+
+                <div class="bg-slate-900/60 rounded-2xl p-4 space-y-3 border border-indigo-500/20">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-indigo-300">Pontuação Total:</span>
+                        <span id="finalScore" class="font-heading font-extrabold text-xl text-amber-400">0</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-indigo-300">Respostas Certas:</span>
+                        <span id="finalCorrect" class="font-bold text-emerald-400">0</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-indigo-300">Maior Sequência:</span>
+                        <span id="finalStreak" class="font-bold text-pink-400">0x</span>
+                    </div>
+                </div>
+
+                <p id="performanceFeedback" class="text-sm text-indigo-200 italic">Muito bem! Você está ficando craque no relógio!</p>
+
+                <div class="flex space-x-3">
+                    <button onclick="game.startGame()" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 font-bold rounded-2xl shadow-lg transition">
+                        <i class="fa-solid fa-rotate-right mr-1"></i> Jogar De Novo
+                    </button>
+                    <button onclick="game.exitToMenu()" class="py-3 px-4 bg-slate-800 hover:bg-slate-700 text-indigo-200 font-bold rounded-2xl border border-indigo-500/20 transition">
+                        Menu
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Modal -->
+        <div id="helpModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+            <div class="glass-card max-w-lg w-full rounded-3xl p-6 text-left space-y-4 shadow-2xl border border-indigo-500/30 max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center border-b border-indigo-500/20 pb-3">
+                    <h3 class="font-heading text-xl font-bold text-amber-300">
+                        <i class="fa-solid fa-book-open mr-2"></i>Como Ler as Horas?
+                    </h3>
+                    <button onclick="game.closeHelpModal()" class="text-slate-400 hover:text-white text-xl">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-3 text-xs md:text-sm text-indigo-100 leading-relaxed">
+                    <div class="p-3 bg-orange-500/10 border border-orange-500/30 rounded-xl">
+                        <span class="font-bold text-orange-400 text-sm block mb-1">🟧 Ponteiro Pequeno (Laranja) = Horas</span>
+                        Aponta diretamente para o número da hora atual. Se estiver entre dois números, vale o menor número anterior!
+                    </div>
+
+                    <div class="p-3 bg-sky-500/10 border border-sky-500/30 rounded-xl">
+                        <span class="font-bold text-sky-400 text-sm block mb-1">🟦 Ponteiro Grande (Azul) = Minutos</span>
+                        Cada número no relógio vale <strong>5 minutos</strong>!
+                        <ul class="list-disc list-inside mt-1 space-y-0.5 text-indigo-200">
+                            <li>Ponteiro no <strong>12</strong> = 00 minutos (:00)</li>
+                            <li>Ponteiro no <strong>3</strong> = 15 minutos (:15)</li>
+                            <li>Ponteiro no <strong>6</strong> = 30 minutos (:30 ou meia hora)</li>
+                            <li>Ponteiro no <strong>9</strong> = 45 minutos (:45)</li>
+                        </ul>
+                    </div>
+
+                    <div class="p-3 bg-indigo-500/10 border border-indigo-500/30 rounded-xl">
+                        <span class="font-bold text-amber-300 text-sm block mb-1">💡 Dica Importante</span>
+                        À medida que os minutos passam, o ponteiro pequeno das horas se move devagarzinho em direção à hora seguinte!
+                    </div>
+                </div>
+
+                <button onclick="game.closeHelpModal()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 font-bold rounded-xl text-white transition">
+                    Entendi, Vamos Jogar!
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="text-center py-3 text-xs text-indigo-300/60 z-10">
+        Jogo Educativo do Relógio • Aprenda brincando
+    </footer>
+
+    <script>
+        // Sound Synthesizer using Web Audio API
+        class SoundEffects {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+                this.musicEnabled = true;
+                this.bgmPlaying = false;
+                this.bgmTimer = null;
+                this.bgmStep = 0;
+
+                // Melodia suave de 16 notas para o fundo (escala de Dó Maior)
+                this.bgmMelody = [
+                    261.63, 329.63, 392.00, 523.25,
+                    440.00, 392.00, 329.63, 392.00,
+                    349.23, 440.00, 523.25, 493.88,
+                    392.00, 329.63, 293.66, 392.00
+                ];
+
+                // Notas de baixo (Acompanhamento)
+                this.bgmBass = [
+                    130.81, 130.81, 130.81, 130.81,
+                    110.00, 110.00, 110.00, 110.00,
+                    87.31,  87.31,  87.31,  87.31,
+                    98.00,  98.00,  98.00,  98.00
+                ];
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) {
+                        this.ctx = new AudioContext();
+                    }
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            startBGM() {
+                if (!this.musicEnabled || this.bgmPlaying) return;
+                this.init();
+                if (!this.ctx) return;
+
+                this.bgmPlaying = true;
+                this.bgmStep = 0;
+
+                // Loop a cada 260ms para um ritmo calmo e suave
+                this.bgmTimer = setInterval(() => {
+                    if (!this.bgmPlaying || !this.musicEnabled) return;
+                    this.playBGMStep();
+                }, 260);
+            }
+
+            stopBGM() {
+                this.bgmPlaying = false;
+                if (this.bgmTimer) {
+                    clearInterval(this.bgmTimer);
+                    this.bgmTimer = null;
+                }
+            }
+
+            toggleMusic() {
+                this.musicEnabled = !this.musicEnabled;
+                if (this.musicEnabled) {
+                    this.startBGM();
+                } else {
+                    this.stopBGM();
+                }
+                return this.musicEnabled;
+            }
+
+            playBGMStep() {
+                if (!this.ctx || this.ctx.state !== 'running') return;
+
+                const now = this.ctx.currentTime;
+
+                // Sintetizador da melodia principal (onda triângulo macia)
+                const freq = this.bgmMelody[this.bgmStep % this.bgmMelody.length];
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, now);
+
+                // Volume baixo para não atrapalhar a concentração
+                gain.gain.setValueAtTime(0.02, now);
+                gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.22);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.24);
+
+                // Baixo suave no início de cada compasso (a cada 4 notas)
+                if (this.bgmStep % 4 === 0) {
+                    const bassFreq = this.bgmBass[this.bgmStep % this.bgmBass.length];
+                    const bassOsc = this.ctx.createOscillator();
+                    const bassGain = this.ctx.createGain();
+
+                    bassOsc.type = 'sine';
+                    bassOsc.frequency.setValueAtTime(bassFreq, now);
+
+                    bassGain.gain.setValueAtTime(0.03, now);
+                    bassGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+
+                    bassOsc.connect(bassGain);
+                    bassGain.connect(this.ctx.destination);
+
+                    bassOsc.start(now);
+                    bassOsc.stop(now + 0.55);
+                }
+
+                this.bgmStep++;
+            }
+
+            playCorrect() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc1 = this.ctx.createOscillator();
+                const osc2 = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc1.type = 'triangle';
+                osc2.type = 'sine';
+
+                osc1.frequency.setValueAtTime(523.25, now); // C5
+                osc1.frequency.setValueAtTime(659.25, now + 0.1); // E5
+                osc1.frequency.setValueAtTime(783.99, now + 0.2); // G5
+                osc1.frequency.setValueAtTime(1046.50, now + 0.3); // C6
+
+                osc2.frequency.setValueAtTime(261.63, now);
+                osc2.frequency.setValueAtTime(329.63, now + 0.1);
+                osc2.frequency.setValueAtTime(392.00, now + 0.2);
+                osc2.frequency.setValueAtTime(523.25, now + 0.3);
+
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc1.start(now);
+                osc2.start(now);
+                osc1.stop(now + 0.6);
+                osc2.stop(now + 0.6);
+            }
+
+            playWrong() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.setValueAtTime(130, now + 0.15);
+
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.4);
+            }
+
+            playClick() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(400, now + 0.05);
+
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.05);
+            }
+        }
+
+        const sound = new SoundEffects();
+
+        // Main Game Application Logic
+        class ClockGame {
+            constructor() {
+                this.mode = 'guess'; // 'guess' or 'set'
+                this.difficulty = 'easy'; // 'easy', 'medium', 'hard', 'expert'
+                this.timeLimitSetting = 60; // seconds, 0 for infinite
+                
+                this.score = 0;
+                this.streak = 0;
+                this.maxStreak = 0;
+                this.totalCorrect = 0;
+                this.timeRemaining = 60;
+                this.timerInterval = null;
+                this.isPlaying = false;
+
+                this.targetHour = 12; // 0 to 23
+                this.targetMinute = 0; // 0 to 59
+
+                this.userSetHour = 12; // 0 to 23
+                this.userSetMinute = 0;
+
+                this.isDraggingHour = false;
+                this.isDraggingMinute = false;
+
+                this.initUI();
+            }
+
+            initUI() {
+                this.renderClockDial();
+                this.setupDragEvents();
+            }
+
+            renderClockDial() {
+                const ticksGroup = document.getElementById('clockTicks');
+                const numbersGroup = document.getElementById('clockNumbers');
+                ticksGroup.innerHTML = '';
+                numbersGroup.innerHTML = '';
+
+                // Draw 60 minute ticks
+                for (let i = 0; i < 60; i++) {
+                    const angle = (i * 6) * (Math.PI / 180);
+                    const isHourTick = i % 5 === 0;
+                    const innerR = isHourTick ? 112 : 117;
+                    const outerR = 122;
+
+                    const x1 = 150 + innerR * Math.sin(angle);
+                    const y1 = 150 - innerR * Math.cos(angle);
+                    const x2 = 150 + outerR * Math.sin(angle);
+                    const y2 = 150 - outerR * Math.cos(angle);
+
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', x1);
+                    line.setAttribute('y1', y1);
+                    line.setAttribute('x2', x2);
+                    line.setAttribute('y2', y2);
+                    line.setAttribute('stroke', isHourTick ? '#a5b4fc' : '#475569');
+                    line.setAttribute('stroke-width', isHourTick ? '3' : '1.5');
+                    ticksGroup.appendChild(line);
+                }
+
+                // Draw numbers 1 to 12 on dial
+                for (let num = 1; num <= 12; num++) {
+                    const angle = (num * 30) * (Math.PI / 180);
+                    const r = 98;
+                    const x = 150 + r * Math.sin(angle);
+                    const y = 150 - r * Math.cos(angle) + 6;
+
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', x);
+                    text.setAttribute('y', y);
+                    text.setAttribute('fill', '#f8fafc');
+                    text.setAttribute('font-size', '18');
+                    text.setAttribute('font-weight', 'bold');
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('font-family', 'Fredoka, cursive');
+                    text.textContent = num;
+                    numbersGroup.appendChild(text);
+                }
+            }
+
+            setGameMode(mode) {
+                sound.playClick();
+                this.mode = mode;
+                const guessBtn = document.getElementById('modeGuessBtn');
+                const setBtn = document.getElementById('modeSetBtn');
+
+                if (mode === 'guess') {
+                    guessBtn.className = "p-3 rounded-2xl border-2 border-indigo-500 bg-indigo-600/30 text-left transition flex items-center space-x-3";
+                    setBtn.className = "p-3 rounded-2xl border-2 border-slate-700 bg-slate-800/40 text-left transition flex items-center space-x-3";
+                } else {
+                    setBtn.className = "p-3 rounded-2xl border-2 border-indigo-500 bg-indigo-600/30 text-left transition flex items-center space-x-3";
+                    guessBtn.className = "p-3 rounded-2xl border-2 border-slate-700 bg-slate-800/40 text-left transition flex items-center space-x-3";
+                }
+            }
+
+            setDifficulty(diff) {
+                sound.playClick();
+                this.difficulty = diff;
+                const easyBtn = document.getElementById('diffEasyBtn');
+                const medBtn = document.getElementById('diffMediumBtn');
+                const hardBtn = document.getElementById('diffHardBtn');
+                const expertBtn = document.getElementById('diffExpertBtn');
+
+                const activeClass = "py-2 px-2 rounded-xl border-2 border-amber-400 bg-amber-400/20 text-amber-300 font-bold text-xs transition text-center";
+                const inactiveClass = "py-2 px-2 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-indigo-200 font-bold text-xs transition text-center";
+
+                easyBtn.className = diff === 'easy' ? activeClass : inactiveClass;
+                medBtn.className = diff === 'medium' ? activeClass : inactiveClass;
+                hardBtn.className = diff === 'hard' ? activeClass : inactiveClass;
+                expertBtn.className = diff === 'expert' ? activeClass : inactiveClass;
+            }
+
+            setTimeLimit(seconds) {
+                sound.playClick();
+                this.timeLimitSetting = seconds;
+                const t60 = document.getElementById('timer60Btn');
+                const tFree = document.getElementById('timerFreeBtn');
+
+                if (seconds === 60) {
+                    t60.className = "flex-1 py-2.5 rounded-xl border border-indigo-500/50 bg-indigo-500/20 text-indigo-200 text-xs font-bold";
+                    tFree.className = "flex-1 py-2.5 rounded-xl border border-slate-700 bg-slate-800/40 text-slate-400 text-xs font-bold";
+                } else {
+                    tFree.className = "flex-1 py-2.5 rounded-xl border border-indigo-500/50 bg-indigo-500/20 text-indigo-200 text-xs font-bold";
+                    t60.className = "flex-1 py-2.5 rounded-xl border border-slate-700 bg-slate-800/40 text-slate-400 text-xs font-bold";
+                }
+            }
+
+            toggleSound() {
+                sound.enabled = !sound.enabled;
+                const icon = document.getElementById('soundIcon');
+                icon.className = sound.enabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark text-slate-500';
+            }
+
+            toggleMusic() {
+                sound.init();
+                const isMusicOn = sound.toggleMusic();
+                const icon = document.getElementById('musicIcon');
+                icon.className = isMusicOn ? 'fa-solid fa-music text-amber-300' : 'fa-solid fa-slash text-slate-500';
+            }
+
+            openHelpModal() {
+                sound.playClick();
+                document.getElementById('helpModal').classList.remove('hidden');
+            }
+
+            closeHelpModal() {
+                sound.playClick();
+                document.getElementById('helpModal').classList.add('hidden');
+            }
+
+            startGame() {
+                sound.playClick();
+                sound.startBGM();
+                this.score = 0;
+                this.streak = 0;
+                this.maxStreak = 0;
+                this.totalCorrect = 0;
+                this.isPlaying = true;
+
+                document.getElementById('scoreDisplay').textContent = '0';
+                document.getElementById('streakDisplay').textContent = '0x';
+
+                document.getElementById('menuScreen').classList.add('hidden');
+                document.getElementById('gameOverModal').classList.add('hidden');
+                document.getElementById('playScreen').classList.remove('hidden');
+                document.getElementById('playScreen').classList.add('flex');
+
+                if (this.timeLimitSetting > 0) {
+                    this.timeRemaining = this.timeLimitSetting;
+                    document.getElementById('timerContainer').classList.remove('hidden');
+                    document.getElementById('timerDisplay').textContent = `${this.timeRemaining}s`;
+                    this.startTimer();
+                } else {
+                    document.getElementById('timerContainer').classList.add('hidden');
+                }
+
+                if (this.mode === 'guess') {
+                    document.getElementById('guessControls').classList.remove('hidden');
+                    document.getElementById('setControls').classList.add('hidden');
+                    document.getElementById('questionPromptText').textContent = "Que horas o relógio está marcando (24h)?";
+                    document.getElementById('targetTimeDisplay').classList.add('hidden');
+                } else {
+                    document.getElementById('guessControls').classList.add('hidden');
+                    document.getElementById('setControls').classList.remove('hidden');
+                    document.getElementById('questionPromptText').textContent = "Ajuste o relógio para marcar (24h):";
+                    document.getElementById('targetTimeDisplay').classList.remove('hidden');
+                }
+
+                this.nextQuestion();
+            }
+
+            startTimer() {
+                clearInterval(this.timerInterval);
+                this.timerInterval = setInterval(() => {
+                    this.timeRemaining--;
+                    document.getElementById('timerDisplay').textContent = `${this.timeRemaining}s`;
+
+                    if (this.timeRemaining <= 10) {
+                        document.getElementById('timerDisplay').classList.add('text-pink-500');
+                    } else {
+                        document.getElementById('timerDisplay').classList.remove('text-pink-500');
+                    }
+
+                    if (this.timeRemaining <= 0) {
+                        clearInterval(this.timerInterval);
+                        this.endGame();
+                    }
+                }, 1000);
+            }
+
+            generateRandomTime() {
+                let hour = Math.floor(Math.random() * 24); // 0 to 23 hours
+                let minute = 0;
+
+                if (this.difficulty === 'easy') {
+                    minute = 0;
+                } else if (this.difficulty === 'medium') {
+                    const minutesArr = [0, 15, 30, 45];
+                    minute = minutesArr[Math.floor(Math.random() * minutesArr.length)];
+                } else if (this.difficulty === 'hard') {
+                    minute = Math.floor(Math.random() * 12) * 5;
+                } else {
+                    // Expert: 1-minute intervals (0 to 59)
+                    minute = Math.floor(Math.random() * 60);
+                }
+
+                this.targetHour = hour;
+                this.targetMinute = minute;
+            }
+
+            getPeriodInfo(hour) {
+                if (hour >= 0 && hour < 6) {
+                    return { text: '🌌 Madrugada', class: 'bg-indigo-950/80 text-indigo-300 border-indigo-500/30' };
+                } else if (hour >= 6 && hour < 12) {
+                    return { text: '🌅 Manhã', class: 'bg-amber-500/20 text-amber-300 border-amber-500/30' };
+                } else if (hour >= 12 && hour < 18) {
+                    return { text: '☀️ Tarde', class: 'bg-orange-500/20 text-orange-300 border-orange-500/30' };
+                } else {
+                    return { text: '🌙 Noite', class: 'bg-purple-900/60 text-purple-200 border-purple-500/30' };
+                }
+            }
+
+            updatePeriodBadge(hour) {
+                const badge = document.getElementById('periodBadge');
+                const period = this.getPeriodInfo(hour);
+                badge.textContent = period.text;
+                badge.className = `inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold mt-2 shadow-sm border ${period.class}`;
+            }
+
+            nextQuestion() {
+                this.hideFeedback();
+                this.generateRandomTime();
+                this.updatePeriodBadge(this.targetHour);
+
+                if (this.mode === 'guess') {
+                    this.updateClockHands(this.targetHour, this.targetMinute);
+                    this.generateMultipleChoiceOptions();
+                } else {
+                    // Start set mode at 12:00 or 00:00 default
+                    this.userSetHour = 12;
+                    this.userSetMinute = 0;
+                    this.updateClockHands(this.userSetHour, this.userSetMinute);
+                    this.updateUserSetDisplays();
+
+                    const formatted = this.formatTimeStr(this.targetHour, this.targetMinute);
+                    document.getElementById('targetTimeDisplay').textContent = formatted;
+                }
+            }
+
+            formatTimeStr(h, m) {
+                const hourFormatted = String(h).padStart(2, '0');
+                const minFormatted = String(m).padStart(2, '0');
+                return `${hourFormatted}:${minFormatted}`;
+            }
+
+            updateClockHands(h, m) {
+                // Hour hand angle in 12h rotation: 30 deg/hour + 0.5 deg/min
+                const hourAngle = (h % 12) * 30 + (m * 0.5);
+                const minuteAngle = m * 6;
+
+                const hourGroup = document.getElementById('hourHandGroup');
+                const minuteGroup = document.getElementById('minuteHandGroup');
+
+                hourGroup.style.transform = `rotate(${hourAngle}deg)`;
+                minuteGroup.style.transform = `rotate(${minuteAngle}deg)`;
+            }
+
+            generateMultipleChoiceOptions() {
+                const container = document.getElementById('optionsContainer');
+                container.innerHTML = '';
+
+                const correctAnswer = this.formatTimeStr(this.targetHour, this.targetMinute);
+                const optionsSet = new Set([correctAnswer]);
+
+                // Include 12h offset (AM/PM counterpart) as a distractor if appropriate
+                const amPmOffsetHour = (this.targetHour + 12) % 24;
+                optionsSet.add(this.formatTimeStr(amPmOffsetHour, this.targetMinute));
+
+                // Generate distractors with matching difficulty precision
+                while (optionsSet.size < 4) {
+                    let hDistractor = Math.floor(Math.random() * 24);
+                    let mDistractor = 0;
+
+                    if (this.difficulty === 'easy') {
+                        mDistractor = 0;
+                    } else if (this.difficulty === 'medium') {
+                        const mArr = [0, 15, 30, 45];
+                        mDistractor = mArr[Math.floor(Math.random() * mArr.length)];
+                    } else if (this.difficulty === 'hard') {
+                        mDistractor = Math.floor(Math.random() * 12) * 5;
+                    } else {
+                        // Expert: nearby minute distractors for challenge
+                        const offset = (Math.floor(Math.random() * 5) + 1) * (Math.random() < 0.5 ? 1 : -1);
+                        mDistractor = (this.targetMinute + offset + 60) % 60;
+                    }
+
+                    const distractorStr = this.formatTimeStr(hDistractor, mDistractor);
+                    optionsSet.add(distractorStr);
+                }
+
+                const optionsArr = Array.from(optionsSet).sort(() => Math.random() - 0.5);
+
+                optionsArr.forEach(optionStr => {
+                    const btn = document.createElement('button');
+                    btn.className = "py-3 px-4 glass-card hover:bg-indigo-600/50 border border-indigo-500/30 rounded-2xl text-xl font-extrabold font-heading text-amber-300 shadow-md transform active:scale-95 transition-all text-center";
+                    btn.textContent = optionStr;
+                    btn.onclick = () => this.checkGuessAnswer(optionStr, btn);
+                    container.appendChild(btn);
+                });
+            }
+
+            checkGuessAnswer(selectedTime, btnElement) {
+                if (!this.isPlaying) return;
+
+                const correctTime = this.formatTimeStr(this.targetHour, this.targetMinute);
+
+                if (selectedTime === correctTime) {
+                    sound.playCorrect();
+                    btnElement.className = "py-3 px-4 bg-emerald-500 text-slate-950 rounded-2xl text-xl font-extrabold font-heading shadow-lg scale-105 transition-all text-center";
+                    this.handleSuccess();
+                } else {
+                    sound.playWrong();
+                    btnElement.className = "py-3 px-4 bg-rose-500/80 text-white rounded-2xl text-xl font-extrabold font-heading shadow-lg opacity-50 transition-all text-center";
+                    this.handleFailure(correctTime);
+                }
+            }
+
+            adjustHours(delta) {
+                sound.playClick();
+                this.userSetHour = (this.userSetHour + delta + 24) % 24;
+
+                this.updateClockHands(this.userSetHour, this.userSetMinute);
+                this.updateUserSetDisplays();
+            }
+
+            adjustMinutes(delta) {
+                sound.playClick();
+                this.userSetMinute += delta;
+
+                while (this.userSetMinute >= 60) {
+                    this.userSetMinute -= 60;
+                    this.userSetHour = (this.userSetHour + 1) % 24;
+                }
+                while (this.userSetMinute < 0) {
+                    this.userSetMinute += 60;
+                    this.userSetHour = (this.userSetHour - 1 + 24) % 24;
+                }
+
+                this.updateClockHands(this.userSetHour, this.userSetMinute);
+                this.updateUserSetDisplays();
+            }
+
+            updateUserSetDisplays() {
+                document.getElementById('userHoursDisplay').textContent = String(this.userSetHour).padStart(2, '0');
+                document.getElementById('userMinutesDisplay').textContent = String(this.userSetMinute).padStart(2, '0');
+            }
+
+            checkSetAnswer() {
+                if (!this.isPlaying) return;
+
+                const userStr = this.formatTimeStr(this.userSetHour, this.userSetMinute);
+                const targetStr = this.formatTimeStr(this.targetHour, this.targetMinute);
+
+                if (userStr === targetStr) {
+                    sound.playCorrect();
+                    this.handleSuccess();
+                } else {
+                    sound.playWrong();
+                    this.handleFailure(targetStr);
+                }
+            }
+
+            handleSuccess() {
+                this.streak++;
+                this.totalCorrect++;
+                if (this.streak > this.maxStreak) this.maxStreak = this.streak;
+
+                const pointsEarned = 10 + (this.streak * 2);
+                this.score += pointsEarned;
+
+                document.getElementById('scoreDisplay').textContent = this.score;
+                document.getElementById('streakDisplay').textContent = `${this.streak}x`;
+
+                this.showFeedback(`✨ Excelente! +${pointsEarned} pontos`, 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30');
+
+                setTimeout(() => {
+                    this.nextQuestion();
+                }, 1000);
+            }
+
+            handleFailure(correctAnswer) {
+                this.streak = 0;
+                document.getElementById('streakDisplay').textContent = '0x';
+
+                this.showFeedback(`❌ Ops! O horário correto era ${correctAnswer}`, 'bg-rose-500/20 text-rose-300 border border-rose-500/30');
+
+                setTimeout(() => {
+                    this.nextQuestion();
+                }, 1800);
+            }
+
+            showFeedback(msg, className) {
+                const banner = document.getElementById('feedbackBanner');
+                banner.textContent = msg;
+                banner.className = `w-full p-3 rounded-2xl text-center font-bold text-sm ${className}`;
+                banner.classList.remove('hidden');
+            }
+
+            hideFeedback() {
+                const banner = document.getElementById('feedbackBanner');
+                banner.classList.add('hidden');
+            }
+
+            setupDragEvents() {
+                const svg = document.getElementById('clockSVG');
+
+                const handleMove = (e) => {
+                    if (!this.isPlaying || this.mode !== 'set') return;
+                    if (!this.isDraggingHour && !this.isDraggingMinute) return;
+
+                    const rect = svg.getBoundingClientRect();
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+
+                    const dx = clientX - centerX;
+                    const dy = clientY - centerY;
+
+                    let angle = Math.atan2(dx, -dy) * (180 / Math.PI);
+                    if (angle < 0) angle += 360;
+
+                    if (this.isDraggingMinute) {
+                        let minutes = Math.round(angle / 6) % 60;
+                        if (this.difficulty !== 'expert') {
+                            // Round to 5 minutes in easy/med/hard
+                            minutes = Math.round(minutes / 5) * 5 % 60;
+                        }
+                        this.userSetMinute = minutes;
+                    } else if (this.isDraggingHour) {
+                        let hours12 = Math.floor(angle / 30);
+                        if (hours12 === 0) hours12 = 12;
+                        // Keep current 24h period (AM or PM) when dragging
+                        const isPM = this.userSetHour >= 12;
+                        this.userSetHour = isPM ? (hours12 % 12) + 12 : hours12 % 12;
+                    }
+
+                    this.updateClockHands(this.userSetHour, this.userSetMinute);
+                    this.updateUserSetDisplays();
+                };
+
+                const startDrag = (isHour, e) => {
+                    e.preventDefault();
+                    if (!this.isPlaying || this.mode !== 'set') return;
+                    if (isHour) this.isDraggingHour = true;
+                    else this.isDraggingMinute = true;
+                };
+
+                const endDrag = () => {
+                    this.isDraggingHour = false;
+                    this.isDraggingMinute = false;
+                };
+
+                const hourGroup = document.getElementById('hourHandGroup');
+                const minuteGroup = document.getElementById('minuteHandGroup');
+
+                hourGroup.addEventListener('mousedown', (e) => startDrag(true, e));
+                hourGroup.addEventListener('touchstart', (e) => startDrag(true, e));
+
+                minuteGroup.addEventListener('mousedown', (e) => startDrag(false, e));
+                minuteGroup.addEventListener('touchstart', (e) => startDrag(false, e));
+
+                window.addEventListener('mousemove', handleMove);
+                window.addEventListener('touchmove', handleMove);
+
+                window.addEventListener('mouseup', endDrag);
+                window.addEventListener('touchend', endDrag);
+            }
+
+            endGame() {
+                this.isPlaying = false;
+                clearInterval(this.timerInterval);
+
+                document.getElementById('finalScore').textContent = this.score;
+                document.getElementById('finalCorrect').textContent = this.totalCorrect;
+                document.getElementById('finalStreak').textContent = `${this.maxStreak}x`;
+
+                let feedback = "Bom trabalho! Continue praticando para ficar ainda melhor.";
+                if (this.score >= 150) feedback = "🏆 Incrível! Você é um Mestre do Relógio!";
+                else if (this.score >= 80) feedback = "🌟 Excelente desempenho! Você lê as horas muito bem!";
+
+                document.getElementById('performanceFeedback').textContent = feedback;
+                document.getElementById('gameOverModal').classList.remove('hidden');
+            }
+
+            exitToMenu() {
+                sound.playClick();
+                this.isPlaying = false;
+                clearInterval(this.timerInterval);
+
+                document.getElementById('playScreen').classList.add('hidden');
+                document.getElementById('gameOverModal').classList.add('hidden');
+                document.getElementById('menuScreen').classList.remove('hidden');
+            }
+        }
+
+        // Initialize Game Instance
+        let game;
+        window.onload = () => {
+            game = new ClockGame();
+        };
+    </script>
+</body>
+</html>
